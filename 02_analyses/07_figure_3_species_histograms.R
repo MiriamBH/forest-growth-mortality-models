@@ -117,7 +117,7 @@ sp_table_signif_95_ci <- sp_table_all |>
     mi_pattern = case_when(mi_diff > 0 ~ "Increase", T ~ "Decline"),
     
     
-    ## 2. SE of differences (Gelman et al pag 61 (75 del pdf):https://users.aalto.fi/~ave/ROS.pdf )
+    ## 2. SE of differences (Gelman et al pag 61 (75 del pdf):https://books.google.es/books?hl=es&lr=&id=fILoDwAAQBAJ&oi=fnd&pg=PR11&dq=Regression+and+Other+Stories&ots=Wy-SryxqT9&sig=aAR5HNQCJ6IEJg0FBIByWFjljDk#v=onepage&q=Regression%20and%20Other%20Stories&f=false)
     g_diff_se = sqrt(
       pred_g_se_high^2 +
         pred_g_se_low^2
