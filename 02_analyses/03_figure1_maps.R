@@ -38,9 +38,15 @@ europe <- st_transform(europe, crs = 4326)
 
 st_is_valid(europe)
 
+# filter all values over the 95% quantile
+q_high <- quantile(data$conifer_prop, probs = 0.95, na.rm = T)
+
+# sp_data2 <- data_1[!(data_1[var_name] < q_low),]
+data2 <- data[(data$conifer_prop < q_high),]
+
 # verctor con datos de sp_data
 dat_df<- terra::vect(
-  x = data,
+  x = data2,
   geom = c("longitude", "latitude"),
   crs = "EPSG:4326", 
   keep = T
@@ -109,12 +115,17 @@ ggsave(
 
 data <- species_list |> 
   list_rbind() |> 
-  group_by(id, longitude, latitude) |> 
+  group_by(id) |> 
   summarise(growth = sum(growth_annual), 
             moccurrence = sum(mort_occ_annual), 
             mintensity = sum(mort_int_annual), 
-            productivity = growth + moccurrence * mintensity)
-  
+            productivity = growth + moccurrence * mintensity, 
+            longitude = mean(longitude), 
+            latitude = mean(latitude)) |> 
+  mutate(moccurrence = case_when(moccurrence > 0 ~ 1, T ~ 0))
+
+table(data$moccurrence)
+
 #Europe's base map 
 europe <- ne_countries(
   scale = "medium", returnclass = "sf", continent = "Europe")
@@ -125,76 +136,134 @@ st_is_valid(europe)
 
 create_productivity_components_maps <- function(var_name, var_title) {
 
-  ## Filter data taking only data inside the 10 and 90% quantiles
-  # data_1 <- data
   
-  # q_low <- quantile(data_1[var_name], probs = 0.10, na.rm = T)
-  # q_high <- quantile(data_1[var_name], probs = 0.90, na.rm = T)
-  # 
-  # sp_data2 <- data_1[!(data_1[var_name] < q_low),]
-  # data <- sp_data2[!(sp_data2[var_name] > q_high),]
+  if (var_name == "mintensity") {
+    data <- data |> filter(mintensity > 0)} else {
+    data <- data
+  }
   
-  
-  dat_df<- terra::vect(
-    x = data,
-    geom = c("longitude", "latitude"),
-    crs = "EPSG:4326", 
-    keep = T
-  )
-  
-  if (var_name == "mintensity") {dat_df <- dat_df|> filter(mintensity > 0)}
-  
-  dat_df_df <- as.data.frame(dat_df)
-  col_data <- as.numeric(dat_df_df[[var_name]])
+  if (var_name == "moccurrence") {
+    dat_df <- terra::vect(
+      x = data,
+      geom = c("longitude", "latitude"),
+      crs = "EPSG:4326",
+      keep = T
+    )}else {
+    
+    ## Filter data taking only data lower than the 95% quantile
+    q_high <- quantile(data[var_name], probs = 0.95, na.rm = T)
+    
+    # sp_data2 <- data_1[!(data_1[var_name] < q_low),]
+    data2 <- data[(data[var_name] < q_high),]
+    
+    dat_df<- terra::vect(
+      x = data2,
+      geom = c("longitude", "latitude"),
+      crs = "EPSG:4326",
+      keep = T
+    )
+    
+  }
   
   if (var_name == "productivity") {option = "D"} else {option = "B"}
 
-  
-  plot <- ggplot() +
-    geom_spatvector(
-      data = europe,
-      fill = "grey80",
-      color = "grey80"
-    ) +
-    stat_summary_hex(
-      data = dat_df,
-      aes(x = longitude, y = latitude, z = col_data),
-      bins = 40, 
-      fun = mean, # or sum, median, etc.
-      alpha = 1
-    ) +
-    scale_fill_viridis(option = option, direction = 1) +
-    labs(
-      title = var_title,
-    ) +
-    theme(
-      panel.background = element_rect(fill = "white"),
-      axis.title = element_blank(),
-      axis.text = element_text(size = 8), 
-      title = element_text(size = 10), 
-      legend.position = c(0.05, 1),  
-      legend.justification = c(0, 1),  
-      legend.text = element_text(size = 10),
-      legend.title = element_blank(),
-      legend.key.size = unit(0.8, "cm"), 
-      legend.direction = "vertical"
-    ) +
-    coord_sf(
-      xlim = c(-15, 37.5),
-      ylim = c(35, 75),
-      expand = FALSE
-    ) +
-    annotation_scale(
-      location = "br",         # bottom left
-      width_hint = 0.2         
-    ) +
-    annotation_north_arrow(
-      location = "br",
-      which_north = "true",
-      pad_x = unit(0.2, "in"),
-      pad_y = unit(0.4, "in"),
-      style = north_arrow_fancy_orienteering
-    )
+  if (var_name == "moccurrence"){
+    
+    plot <- ggplot() +
+      geom_spatvector(
+        data = europe,
+        fill = "grey80",
+        color = "grey80"
+      ) +
+      stat_summary_hex(
+        data = dat_df,
+        aes(x = longitude, y = latitude, 
+            z = .data[[var_name]]),
+        bins = 40, 
+        fun = mean, # or sum, median, etc.
+        alpha = 1, 
+      ) +
+      scale_fill_viridis(option = option, direction = 1) +
+      labs(
+        title = var_title,
+      ) +
+      theme(
+        panel.background = element_rect(fill = "white"),
+        axis.title = element_blank(),
+        axis.text = element_text(size = 8), 
+        title = element_text(size = 10), 
+        legend.position = c(0.05, 1),  
+        legend.justification = c(0, 1),  
+        legend.text = element_text(size = 10),
+        legend.title = element_blank(),
+        legend.key.size = unit(0.8, "cm"), 
+        legend.direction = "vertical"
+      ) +
+      coord_sf(
+        xlim = c(-15, 37.5),
+        ylim = c(35, 75),
+        expand = FALSE
+      ) +
+      annotation_scale(
+        location = "br",         # bottom left
+        width_hint = 0.2         
+      ) +
+      annotation_north_arrow(
+        location = "br",
+        which_north = "true",
+        pad_x = unit(0.2, "in"),
+        pad_y = unit(0.4, "in"),
+        style = north_arrow_fancy_orienteering
+      )
+    
+  } else {
+    
+    plot <- ggplot() +
+      geom_spatvector(
+        data = europe,
+        fill = "grey80",
+        color = "grey80"
+      ) +
+      stat_summary_hex(
+        data = dat_df,
+        aes(x = longitude, y = latitude, z = .data[[var_name]]),
+        bins = 50, 
+        fun = median, # or sum, median, etc.
+        alpha = 1
+      ) +
+      scale_fill_viridis(option = option, direction = 1) +
+      labs(
+        title = var_title,
+      ) +
+      theme(
+        panel.background = element_rect(fill = "white"),
+        axis.title = element_blank(),
+        axis.text = element_text(size = 8), 
+        title = element_text(size = 10), 
+        legend.position = c(0.05, 1),  
+        legend.justification = c(0, 1),  
+        legend.text = element_text(size = 10),
+        legend.title = element_blank(),
+        legend.key.size = unit(0.8, "cm"), 
+        legend.direction = "vertical"
+      ) +
+      coord_sf(
+        xlim = c(-15, 37.5),
+        ylim = c(35, 75),
+        expand = FALSE
+      ) +
+      annotation_scale(
+        location = "br",         # bottom left
+        width_hint = 0.2         
+      ) +
+      annotation_north_arrow(
+        location = "br",
+        which_north = "true",
+        pad_x = unit(0.2, "in"),
+        pad_y = unit(0.4, "in"),
+        style = north_arrow_fancy_orienteering
+      )
+  }
   
   plot
   
