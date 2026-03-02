@@ -52,6 +52,14 @@ dat_df<- terra::vect(
   keep = T
 )
 
+my_palette <- colorRampPalette(c(
+  "#2C1E7F",
+  "#2E6F8E",
+  "#2FA36B",
+  "#73C476",
+  "#F2E51E"
+))
+
 figure1_bl_nl <- ggplot() +
   geom_spatvector(
     data = europe,
@@ -61,14 +69,14 @@ figure1_bl_nl <- ggplot() +
   stat_summary_hex(
     data = dat_df,
     aes(x = longitude, y = latitude, z = conifer_prop),
-    bins = 50, # or whatever number of bins you want
+    bins = 55, 
     fun = mean, # or sum, median, etc.
     alpha = 1
   ) +
   labs(
     title = "Proportion of needle-leaved species",
   ) +
-  scale_fill_viridis(option = "D", direction = 1) +
+  scale_fill_gradientn(colours = my_palette(100)) +
   theme(
     panel.background = element_rect(fill = "white"),
     axis.title = element_blank(),
@@ -165,7 +173,20 @@ create_productivity_components_maps <- function(var_name, var_title) {
     
   }
   
-  if (var_name == "productivity") {option = "D"} else {option = "B"}
+  if (var_name == "productivity") {my_palette <- colorRampPalette(c(
+    "#2C1E7F",
+    "#2E6F8E",
+    "#2FA36B",
+    "#73C476",
+    "#F2E51E"
+  ))} else {my_palette <- colorRampPalette(c(
+    "#4A1D7A",
+    "#9A3C88",
+    "#E16462",
+    "#F4A261",
+    "#F6D88A"
+  ))}
+  
 
   if (var_name == "moccurrence"){
     
@@ -179,11 +200,11 @@ create_productivity_components_maps <- function(var_name, var_title) {
         data = dat_df,
         aes(x = longitude, y = latitude, 
             z = .data[[var_name]]),
-        bins = 40, 
+        bins = 55, 
         fun = mean, # or sum, median, etc.
         alpha = 1, 
       ) +
-      scale_fill_viridis(option = option, direction = 1) +
+      scale_fill_gradientn(colours = my_palette(100)) +
       labs(
         title = var_title,
       ) +
@@ -227,11 +248,11 @@ create_productivity_components_maps <- function(var_name, var_title) {
       stat_summary_hex(
         data = dat_df,
         aes(x = longitude, y = latitude, z = .data[[var_name]]),
-        bins = 50, 
+        bins = 55, 
         fun = median, # or sum, median, etc.
         alpha = 1
       ) +
-      scale_fill_viridis(option = option, direction = 1) +
+      scale_fill_gradientn(colours = my_palette(100)) +
       labs(
         title = var_title,
       ) +
